@@ -261,7 +261,7 @@ displaying information for the correct file."
                (member (file-truename (buffer-file-name (window-buffer))) (org-roam--find-all-files)))
       (org-roam-update (org-roam--get-id (buffer-file-name (window-buffer)))))))
 
-(defun org-roam-build-graph ()
+(defun org-roam--build-graphviz ()
   "Build graphviz graph output."
   (with-temp-buffer
     (insert "digraph {\n")
@@ -281,6 +281,30 @@ displaying information for the correct file."
     (insert "}")
     (buffer-string)))
 
+(defun org-roam--export-to-json ()
+  "Build JSON output."
+  (with-temp-buffer
+    (insert "{\n")
+    (insert "\"nodes\": [")
+    (let ((nodes))
+      (mapcar (lambda (file)
+                (setq nodes (cons (format "{\"id\": \"%s\"}" (org-roam--get-id file)) nodes)))
+              (org-roam--find-all-files))
+      (insert (s-join "," nodes)))
+    (insert "],\n")
+    (insert "\"links\": [\n")
+    (let ((links))
+      (maphash
+       (lambda (link-id backlinks)
+         (maphash
+          (lambda (backlink-id content)
+            (setq links (cons (format "  {\"source\": \"%s\", \"target\": \"%s\", \"type\": \"forward\"}" backlink-id link-id) links)))
+          backlinks))
+       org-roam-cache)
+      (insert (s-join ",\n" links)))
+    (insert "\n]\n}")
+    (buffer-string)))
+
 (defun org-roam-show-graph (&rest body)
   (interactive)
   (unless org-roam-graphviz-executable
@@ -290,7 +314,7 @@ displaying information for the correct file."
   (declare (indent 0))
   (let ((temp-dot (expand-file-name "graph.dot" temporary-file-directory))
         (temp-graph (expand-file-name "graph.svg" temporary-file-directory))
-        (graph (org-roam-build-graph)))
+        (graph (org-roam--build-graphviz)))
     (with-temp-file temp-dot
       (insert graph))
     (call-process org-roam-graphviz-executable nil 0 nil temp-dot "-Tsvg" "-o" temp-graph)
