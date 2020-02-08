@@ -152,6 +152,19 @@ If called interactively, then PARENTS is non-nil."
       (make-empty-file file-path))
     (find-file file-path)))
 
+(defun org-roam-find-at-point ()
+  "If point is above a link with a zettel indicator, open the file indicated by it."
+  (interactive)
+  (when (org-in-regexp org-bracket-link-regexp 1)
+    (let* ((text (org-extract-attributes (org-link-unescape (org-match-string-no-properties 3))))
+           (link (org-extract-attributes (org-link-unescape (org-match-string-no-properties 1))))
+           (zettel-regexp (concat "^" org-roam-zettel-indicator))
+           (file-regexp "^file:")
+           (file (replace-regexp-in-string file-regexp "" link))
+           (backlink-id (replace-regexp-in-string zettel-regexp "" text)))
+      (when (string-match-p zettel-regexp text)
+        (find-file file)))))
+
 ;;; Building the org-roam cache (asynchronously)
 (defun org-roam--build-cache-async ()
   "Builds the cache asychronously, saving it into `org-roam-cache'."
